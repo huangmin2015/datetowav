@@ -40,13 +40,12 @@ UTILS_DIR = ./utils
 HEAP_MEM_DIR = ./HeapMem
 
 #  ======== toolchain macros ========
-TOOLCHAIN_PREFIX=/usr/local/oecore-x86_64/sysroots/x86_64-angstromsdk-linux/usr/bin/arm-angstrom-linux-gnueabi/arm-angstrom-linux-gnueabi-
-IPC_INSTALL_DIR=/home/kylin/ti/ipc_3_47_00_00
-CMEM_INSTALL_DIR=/home/kylin/am57xx-evm-04.02.00.09/board-support/extra-drivers/cmem-mod-4.14.00.00+gitAUTOINC+b514a99ac4
+TOOLCHAIN_PREFIX := ${ROOT_PATH}/usr/local/oecore-x86_64/sysroots/x86_64-angstromsdk-linux/usr/bin/arm-angstrom-linux-gnueabi/arm-angstrom-linux-gnueabi-
+SDK_LINUX_INSTALL := /home/alan/am57xx-evm-04.02.00.09
+
 
 
 PLATFORM=
-
 
 srcs = ${wildcard ./*.c} 
 local_lib_srcs += ${wildcard $(BIGDATA_DIR)/*.c}
@@ -132,11 +131,7 @@ AR = $(TOOLCHAIN_PREFIX)ar
 LD = $(TOOLCHAIN_PREFIX)gcc
 CFLAGS =
 CPPFLAGS =
-LDFLAGS = -L$(IPC_INSTALL_DIR)/linux/src/api/.libs/ \
-    -L$(IPC_INSTALL_DIR)/linux/src/utils/.libs \
-    -L$(IPC_INSTALL_DIR)/linux/src/transport/.libs \
-    -L$(CMEM_INSTALL_DIR)/src/cmem/api/.libs \
-    -L/home/kylin/am57xx-evm-04.02.00.09/linux-devkit/sysroots/armv7ahf-neon-linux-gnueabi/usr/lib/
+LDFLAGS = -L$(SDK_LINUX_INSTALL)/linux-devkit/sysroots/armv7ahf-neon-linux-gnueabi/usr/lib/
         
 
 CFLAGS += -c -MD -MF $@.dep
@@ -149,9 +144,8 @@ CFLAGS +=  -ffloat-store -fPIC -Wunused -pthread -Dfar= $(CCPROFILE_$(PROFILE)) 
     -I. -I.. 
 
 #include 的目录
-CFLAGS += -I$(IPC_INSTALL_DIR)/linux/include -I$(IPC_INSTALL_DIR)/packages -I$(CMEM_INSTALL_DIR)/include
-CFLAGS += -I$(HEAP_MEM_DIR) -I$(SHARE_REGION_DIR) -I$(BIGDATA_DIR)  -I$(UTILS_DIR) 
-
+CFLAGS += -I$(SDK_LINUX_INSTALL)/linux-devkit/sysroots/armv7ahf-neon-linux-gnueabi/usr/include
+CFLAGS += -I$(HEAP_MEM_DIR) -I$(SHARE_REGION_DIR) -I$(BIGDATA_DIR)  -I$(UTILS_DIR)  
 LDFLAGS += $(LDPROFILE_$(PROFILE)) -Wall -Wl,-Map=$@.map
 
 LDLIBS = -lpthread -lc -lrt -lticmem -ltitransportrpmsg \

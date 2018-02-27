@@ -62,7 +62,7 @@
 #include "MemoryDefs.h"
 
 /* local header files */
-#include "../shared/AppCommon.h"
+#include "AppCommon.h"
 #include "App.h"
 #include "Wav.h"
 
@@ -546,4 +546,3 @@ Int App_exec(Void)
     transfer_clean();
     return status;
 }
-

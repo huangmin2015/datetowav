@@ -44,7 +44,7 @@ Int App_create(UInt16 remoteProcId);
 Int App_delete();
 Int App_exec();
 Int transfer_clean();
-Int transfer_recv(unsigned short **data, Int *size);
+Int transfer_recv_data(unsigned short **data, Int *size);
 Int transfer_init();
 
 

@@ -51,6 +51,8 @@ extern "C" {
 #define App_CMD_NOP                    0x00000000
 #define App_CMD_SHARED_REGION_INIT     0x00000001
 #define App_CMD_BIGDATA                0x00000002
+#define App_CMD_START                  0x00000003
+#define App_CMD_STOP                   0x00000004
 #define App_CMD_SHUTDOWN               0x02000000
 
 typedef struct {

@@ -300,15 +300,35 @@ Int create_HeapMem(HeapMem_Handle *sr1Heap, SharedRegion_Entry *pSrEntry)
     return status;
 }
 
+Int Led_Ctrl(Int c)
+{
+     char cmdstr[40];
+     system("i2cset -y -f 0 0x3c 0 1");
+     system("i2cset -y -f 0 0x3c 0x4a 0");
+     sprintf(cmdstr,"i2cset -y -f 0 0x3c 0x%02x 0x33\n",c*3+1);
+     system(cmdstr);
+     sprintf(cmdstr,"i2cset -y -f 0 0x3c 0x%02x 0x01\n",0x25+c*3+1);
+     system(cmdstr);
+     system("i2cset -y -f 0 0x3c 0x25 0");
+}
+Int Led_Blank(void)
+{
+     system(" i2cset -y -f 0 0x3c 0x4f 0");
+}
+
+
 Int transfer_init()
 {
     Int status = -1;
     SharedRegion_Entry *pSrEntry;
     UInt16 regionId = 1;
+    UInt32 cnt = 0;
+    int i;
     printf("--> App_exec:\n");
-
+	
     g_sr1Heap = NULL;
     App_Msg *msg = NULL;
+
 
     do {
 
@@ -328,6 +348,7 @@ Int transfer_init()
             break;
         }
 
+		//sleep(1);
         /* allocate message */
         msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
 
@@ -345,7 +366,7 @@ Int transfer_init()
         /* Passing the local shared memory address to the remote */
         /* Actually this can be any allocated buffer for the used for the heap */
         msg->u.sharedRegionInitCfg.base = (UInt64)CMEM_getPhys(pSrEntry->base);
-        printf("Shared memory phys Addr %llx\n", msg->u.sharedRegionInitCfg.base);
+        //printf("Shared memory phys Addr %llx\n", msg->u.sharedRegionInitCfg.base);
         if (!msg->u.sharedRegionInitCfg.base) {
             printf("CMEM_getPhys failed\n");
         }
@@ -365,10 +386,11 @@ Int transfer_init()
         /* extract message payload */
 
         if(msg->cmd == App_CMD_SHARED_REGION_INIT){
-            printf(" DSP SHARED_REGION_INIT success !\n");
+           // printf(" DSP SrINIT ok!\n");
         }
 
-        printf("App_exec: message received %d\n", msg->id);
+        //printf("App_exec: msg is: %d cnt:%d\n", msg->id,cnt++);
+	printf("c:%d\n",cnt++);
         /* free the message */
         MessageQ_free((MessageQ_Msg)msg);
 
@@ -378,7 +400,7 @@ Int transfer_init()
     return status;
 }
 
-Int transfer_recv(unsigned short **data, Int *size)
+Int transfer_recv_data(unsigned short **data, Int *size)
 {
     Int status = -1;
     UInt16 regionId = 1;
@@ -389,15 +411,6 @@ Int transfer_recv(unsigned short **data, Int *size)
     App_Msg *msg = NULL;
 
     do {
-        /* allocate message */
-        msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
-        if (msg == NULL) {
-            status = -1;
-            break;
-        }
-        /* set the return address in the message header */
-        MessageQ_setReplyQueue(g_module.hostQue, (MessageQ_Msg)msg);
-
 
         /* Allocate buffer from HeapMem */
         bigDataLocalPtr = (UInt32 *)(HeapMem_alloc(g_sr1Heap,
@@ -422,46 +435,57 @@ Int transfer_recv(unsigned short **data, Int *size)
             printf("bigDataXlatetoGlobalAndSync failed\n");
             break;
         }
+		while(1){
+			sleep(1);
+			/* allocate message */
+        	msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
+        	if (msg == NULL) {
+            	status = -1;
+            	break;
+        	}
+        	/* set the return address in the message header */
+        	MessageQ_setReplyQueue(g_module.hostQue, (MessageQ_Msg)msg);
 
-        msg->regionId = regionId;
-        msg->cmd = App_CMD_BIGDATA;
-        msg->id = 1; //used to count all the message
 
-        /* send message */
-        MessageQ_put(g_module.slaveQue, (MessageQ_Msg)msg);
+        	msg->regionId = regionId;
+        	msg->cmd = App_CMD_BIGDATA;
+       	 	msg->id = 1; //used to count all the message
 
-        /* wait for return message */
-        status = MessageQ_get(g_module.hostQue,
+        	/* send message */
+        	MessageQ_put(g_module.slaveQue, (MessageQ_Msg)msg);
+
+        	/* wait for return message */
+       		 status = MessageQ_get(g_module.hostQue,
                               (MessageQ_Msg *)&msg,
                               (UInt)MessageQ_FOREVER);
-        if (status < 0) {
-            break;
-        }
+        	if (status < 0) {
+            	break;
+        	}
 
-        /* extract message payload */
-        if (msg->cmd == App_CMD_BIGDATA) {
+        	/* extract message payload */
+        	if (msg->cmd == App_CMD_BIGDATA) {
 
-            retVal = bigDataXlatetoLocalAndSync(msg->regionId,
+            	retVal = bigDataXlatetoLocalAndSync(msg->regionId,
                                                 &msg->u.bigDataSharedDesc,
                                                 &g_bigDataLocalDesc);
-            if (retVal) {
-                status = -1;
-                break;
-            }
+            	if (retVal) {
+              	  status = -1;
+              	  break;
+            	}
 
 
-            (*data) = (unsigned short *) g_bigDataLocalDesc.localPtr;
-            (*size) = g_bigDataLocalDesc.size;
+            	(*data) = (unsigned short *) g_bigDataLocalDesc.localPtr;
+            	(*size) = g_bigDataLocalDesc.size;
 
 
-            /* Free big data buffer */
-            printf("App_exec: message received %d\n", msg->id);
-            printf("App_exec: size: %d status: %d\n", g_bigDataLocalDesc.size, status);
-            /* free the message */
-            MessageQ_free((MessageQ_Msg)msg);
-            msg = NULL;
-        }
-
+            	/* Free big data buffer */
+            	printf("App_exec: message received %d\n", msg->id);
+           		printf("App_exec: size: %d status: %d\n", g_bigDataLocalDesc.size, status);
+            	/* free the message */
+            	MessageQ_free((MessageQ_Msg)msg);
+            	msg = NULL;
+        	}
+		}
     } while(0);
 
     return status;
@@ -492,6 +516,153 @@ Int transfer_clean()
 
 }
 
+Int Transfer_send(UInt32 cmd, App_Msg *msg)
+{
+    /* set the return address in the message header */
+    MessageQ_setReplyQueue(g_module.hostQue, (MessageQ_Msg)msg);
+
+    /* fill in message payload */
+    msg->cmd = cmd;
+
+    /* send message */
+    MessageQ_put(g_module.slaveQue, (MessageQ_Msg)msg);
+
+}
+
+
+
+Int Transfer_recv(UInt32 cmd, App_Msg *msg, void *data)
+{
+    Int status = -1;
+
+    do {
+        /* wait for return message */
+        status = MessageQ_get(g_module.hostQue, (MessageQ_Msg *)&msg,
+                              MessageQ_FOREVER);
+
+        if (status < 0) {
+            break;
+        }
+
+        switch (cmd) {
+            case App_CMD_NOP:
+                status = 0;
+                printf("success reply\n");
+                break;
+            case App_CMD_SHUTDOWN:
+                status = 0;
+                printf("success to shutdown\n");
+                break;
+            case App_CMD_START:
+                status = 0;
+                printf("success to start\n");
+                break;
+
+            case App_CMD_STOP:
+                status = 0;
+                printf("success to stop\n");
+                break;
+
+            default:
+                break;
+        }
+
+    } while(0);
+
+    return status;
+}
+
+Int Transfer_shutdown()
+{
+    App_Msg *msg;
+    Int status;
+
+    do {
+        /* allocate message */
+        msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
+        if (msg == NULL) {
+            status = -1;
+            break;
+        }
+        status = Transfer_send(App_CMD_SHUTDOWN, msg);
+        if (status < 0) {
+            printf("transfer send fail\n");
+            break;
+        }
+
+        Transfer_recv(App_CMD_SHUTDOWN, msg, NULL);
+        if (status < 0) {
+            printf("transfer receive fail\n");
+            break;
+        }
+
+
+    } while(0);
+    return status;
+
+}
+
+Int Transfer_start()
+{
+    App_Msg *msg;
+    Int status;
+
+    do {
+        /* allocate message */
+        msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
+        if (msg == NULL) {
+            status = -1;
+            break;
+        }
+        status = Transfer_send(App_CMD_START, msg);
+        if (status < 0) {
+            printf("transfer start fail\n");
+            break;
+        }
+
+        Transfer_recv(App_CMD_START, msg, NULL);
+        if (status < 0) {
+            printf("transfer start receive fail\n");
+            break;
+        }
+
+
+    } while(0);
+    return status;
+
+}
+
+Int Transfer_stop()
+{
+    App_Msg *msg;
+    Int status;
+
+    do {
+        /* allocate message */
+        msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
+        if (msg == NULL) {
+            status = -1;
+            break;
+        }
+        status = Transfer_send(App_CMD_STOP, msg);
+        if (status < 0) {
+            printf("transfer stop fail\n");
+            break;
+        }
+
+        Transfer_recv(App_CMD_STOP, msg, NULL);
+        if (status < 0) {
+            printf("transfer stop fail\n");
+            break;
+        }
+
+
+    } while(0);
+    return status;
+
+}
+
+
 Int App_exec(Void)
 {
     Int status = -1;
@@ -502,17 +673,24 @@ Int App_exec(Void)
     int j;
 
     do {
+
         status = transfer_init();
         if (status < 0) {
             break;
         }
 
-        status = transfer_recv(&data, &size);
-        if (status < 0 ) {
+        status = Transfer_start();
+        if (status < 0) {
             break;
         }
 
-
+		while(1){
+			sleep(1);
+            status = transfer_recv_data(&data, &size);
+        	if (status < 0 ) {
+            	break;
+        	}
+		}
         //将数据保存到wav格式的文件
         wav_init(&head, 16, 2, 44100);
 
@@ -522,24 +700,11 @@ Int App_exec(Void)
 
         wave_finished(&head);
 
-#if 0
+        status = Transfer_stop();
 
-        for (j = 0; j < 8 && j < size / sizeof(UInt32); j += 4)
-            printf("0x%x, 0x%x, 0x%x, 0x%x\n",
-                   data[j],
-                   data[j + 1],
-                   data[j + 2],
-                   data[j + 3]);
-
-        printf(" Last 8 bytes: \n");
-        for (j = (size / sizeof(UInt32) - 8;
-             j < size / sizeof(UInt32); j += 4)
-            printf("0x%x, 0x%x, 0x%x, 0x%x\n",
-                   data[j],
-                   data[j + 1],
-                   data[j + 2],
-                   data[j + 3]);
-#endif
+        if (status < 0) {
+            break;
+        }
 
     } while(0);
 

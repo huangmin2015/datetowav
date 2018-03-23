@@ -40,8 +40,8 @@ UTILS_DIR = ./utils
 HEAP_MEM_DIR = ./HeapMem
 
 #  ======== toolchain macros ========
-TOOLCHAIN_PREFIX := ${ROOT_PATH}/usr/local/oecore-x86_64/sysroots/x86_64-angstromsdk-linux/usr/bin/arm-angstrom-linux-gnueabi/arm-angstrom-linux-gnueabi-
-SDK_LINUX_INSTALL := /home/alan/am57xx-evm-04.02.00.09
+TOOLCHAIN_PREFIX := /home/ema/ti-processor-sdk-linux-am57xx-evm-04.00.00.04/linux-devkit/sysroots/x86_64-arago-linux/usr/bin/arm-linux-gnueabihf-
+SDK_LINUX_INSTALL := /home/ema/ti-processor-sdk-linux-am57xx-evm-04.00.00.04
 
 
 

@@ -405,9 +405,11 @@ Int transfer_recv_data(unsigned short **data, Int *size)
     Int status = -1;
     UInt16 regionId = 1;
     Int retVal;
+	Int i;
     UInt32 *bigDataLocalPtr;
     //UInt32 errorCount=0;
-
+    bigDataSharedDesc_t _SharedDesc;  //msg->u.bigDataSharedDesc)
+	    UInt32 cnt = 0;
     App_Msg *msg = NULL;
 
     do {
@@ -424,19 +426,23 @@ Int transfer_recv_data(unsigned short **data, Int *size)
         }
 
 
+
         /* Populate the Local descriptor */
         g_bigDataLocalDesc.localPtr = (Ptr)bigDataLocalPtr;
         g_bigDataLocalDesc.size = BIGDATA_BUF_SIZE;
         retVal = bigDataXlatetoGlobalAndSync(regionId,
                                              &g_bigDataLocalDesc,
-                                             &msg->u.bigDataSharedDesc);
+                                             &_SharedDesc);
+printf("file:%s ,line:%d \n",__FILE__,__LINE__);
         if (retVal) {
             status = -1;
             printf("bigDataXlatetoGlobalAndSync failed\n");
             break;
         }
 		while(1){
-			sleep(1);
+            //printf("start rcv data\n");
+			//usleep(5000);
+			cnt++;
 			/* allocate message */
         	msg = (App_Msg *)MessageQ_alloc(g_module.heapId, g_module.msgSize);
         	if (msg == NULL) {
@@ -448,9 +454,13 @@ Int transfer_recv_data(unsigned short **data, Int *size)
 
 
         	msg->regionId = regionId;
-        	msg->cmd = App_CMD_BIGDATA;
-       	 	msg->id = 1; //used to count all the message
-
+        	msg->cmd = App_CMD_BIGDATA; 
+            msg->id = 1; //used to count all the message
+            msg->u.bigDataSharedDesc.sharedPtr=_SharedDesc.sharedPtr;
+			msg->u.bigDataSharedDesc.size=_SharedDesc.size;
+            //for(i=0;i<BIGDATA_BUF_SIZE/4;i++)
+			for(i=0;i<8;i++)
+				*((Int *)(g_bigDataLocalDesc.localPtr)+i)=i+3+cnt;
         	/* send message */
         	MessageQ_put(g_module.slaveQue, (MessageQ_Msg)msg);
 
@@ -476,11 +486,14 @@ Int transfer_recv_data(unsigned short **data, Int *size)
 
             	(*data) = (unsigned short *) g_bigDataLocalDesc.localPtr;
             	(*size) = g_bigDataLocalDesc.size;
-
-
+				
             	/* Free big data buffer */
-            	printf("App_exec: message received %d\n", msg->id);
-           		printf("App_exec: size: %d status: %d\n", g_bigDataLocalDesc.size, status);
+            	//printf("App_exec: message received %d\n", msg->id);
+           		//printf("c:%d size:%d s:%d ", cnt,g_bigDataLocalDesc.size, status);
+				printf("c:%d", cnt);
+				//for(i=0;i<2;i++)
+				//printf("0x%x ",*((Int *)(g_bigDataLocalDesc.localPtr)+i));
+				printf("\n");
             	/* free the message */
             	MessageQ_free((MessageQ_Msg)msg);
             	msg = NULL;
@@ -673,24 +686,27 @@ Int App_exec(Void)
     int j;
 
     do {
-
+		 printf("transfer_init!!!\n");
         status = transfer_init();
         if (status < 0) {
             break;
         }
-
+		printf("Transfer_start!!!\n");
         status = Transfer_start();
         if (status < 0) {
             break;
         }
 
 		while(1){
-			sleep(1);
-            status = transfer_recv_data(&data, &size);
+
+			 printf("enter recv data\n");
+        	status = transfer_recv_data(&data, &size);
         	if (status < 0 ) {
             	break;
         	}
+			sleep(1);
 		}
+		
         //将数据保存到wav格式的文件
         wav_init(&head, 16, 2, 44100);
 
